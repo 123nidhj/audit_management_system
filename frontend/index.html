@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Audit Management System</title>
+  <link rel="stylesheet" href="css/style.css?v=3"/>
+</head>
+<body>
+
+<!-- LOGIN PAGE -->
+<div id="page-login" class="page active">
+  <div class="login-wrapper">
+    <div class="login-brand">AUDIT MANAGEMENT SYSTEM</div>
+    <div class="login-card">
+      <form id="loginForm" onsubmit="handleLogin(event)">
+        <div class="form-group"><label>Username or Email</label><input type="text" id="loginUsername" placeholder="Username or email" required/></div>
+        <div class="form-group"><label>Password</label><input type="password" id="loginPassword" placeholder="Password" required/></div>
+        <div id="loginError" class="error-msg hidden">Invalid credentials.</div>
+        <button type="submit" class="btn-login">Sign In</button>
+      </form>
+      <div class="auth-switch">Don't have an account? <a href="#" onclick="switchTab('signup')">Sign Up</a></div>
+
+      <form id="signupForm" class="hidden" onsubmit="handleSignup(event)">
+        <div class="form-group"><label>Full Name *</label><input type="text" id="suName" placeholder="Full Name" required/></div>
+        <div class="form-group"><label>Username *</label><input type="text" id="suUsername" placeholder="Username" required/></div>
+        <div class="form-group"><label>Email *</label><input type="email" id="suEmail" placeholder="Email address" required/></div>
+        <div class="form-group"><label>Company Access Key *</label><input type="password" id="suCompanyCode" placeholder="Enter Company Access Key" required/></div>
+        <div class="form-group"><label>Phone</label><input type="tel" id="suPhone" placeholder="Phone number"/></div>
+        <div class="form-group"><label>Password *</label><input type="password" id="suPassword" required minlength="6"/></div>
+        <div class="form-group"><label>Confirm Password *</label><input type="password" id="suConfirm" required/></div>
+        <div id="suError" class="error-msg hidden"></div>
+        <div id="suSuccess" class="success-msg hidden"></div>
+        <button type="submit" class="btn-login">Create Account</button>
+      </form>
+      <div id="signupSwitch" class="auth-switch hidden">Already have an account? <a href="#" onclick="switchTab('login')">Login</a></div>
+    </div>
+    <div class="login-footer">© 2026 Audit Management System</div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="page-app" class="page hidden">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">Audit Management System</div>
+    <nav class="sidebar-nav" id="sidebarNav">
+      <a class="nav-item active" onclick="showSection('dashboard')">Dashboard</a>
+      <a class="nav-item" onclick="showSection('audits')">Audits</a>
+      <a class="nav-item" onclick="showSection('calendar')">Calendar</a>
+      <a class="nav-item" onclick="showSection('ncs')">Non-Conformances</a>
+      <a class="nav-item" onclick="showSection('observations')">Observations</a>
+      <a class="nav-item" onclick="showSection('reports')">Reports</a>
+      <div class="admin-only" id="sidebarAdminSection">
+        <div class="nav-divider">Masters</div>
+        <a class="nav-item" onclick="showSection('master-plants')">Plants / Sites</a>
+        <a class="nav-item" onclick="showSection('master-departments')">Departments</a>
+        <a class="nav-item" onclick="showSection('master-audit-types')">Audit Types</a>
+        <a class="nav-item" onclick="showSection('master-users')">Users</a>
+        <div class="nav-divider">Database</div>
+        <a class="nav-item" href="/db" target="_blank" style="color:#38bdf8">🗄️ Database Explorer ↗</a>
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-chip">
+        <div class="user-av" id="sidebarAv">A</div>
+        <div><div class="user-nm" id="sidebarName">Admin</div><div class="user-rl" id="sidebarRole">Admin</div></div>
+      </div>
+      <button class="btn-logout" onclick="logout()">Logout</button>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <header class="topbar">
+      <button class="menu-btn" onclick="toggleSidebar()">☰</button>
+      <div class="topbar-title" id="topbarTitle">Dashboard</div>
+    </header>
+    <div class="page-body">
+
+      <!-- DASHBOARD -->
+      <section id="section-dashboard" class="section active">
+        <div class="sec-header"><h2>Dashboard</h2><button class="btn btn-primary admin-only" onclick="showSection('audits');openAuditModal()">+ New Audit</button></div>
+        <div class="stats-grid" id="statsGrid">
+          <div class="stat blue"><div class="stat-val" id="statTotal">—</div><div class="stat-lbl">Total Audits</div></div>
+          <div class="stat green"><div class="stat-val" id="statCompleted">—</div><div class="stat-lbl">Completed</div></div>
+          <div class="stat orange"><div class="stat-val" id="statProgress">—</div><div class="stat-lbl">In Progress</div></div>
+          <div class="stat red"><div class="stat-val" id="statOpenNCs">—</div><div class="stat-lbl">Open NCs</div></div>
+        </div>
+        <div class="dash-grid">
+          <div class="card"><div class="card-hdr">Upcoming Audits</div><div id="upcomingList"></div></div>
+          <div class="card"><div class="card-hdr">Recent NCs</div><div id="recentNCs"></div></div>
+        </div>
+      </section>
+
+      <!-- AUDITS -->
+      <section id="section-audits" class="section">
+        <div class="sec-header"><h2>Audit Management</h2><button class="btn btn-primary admin-only" onclick="openAuditModal()">+ New Audit</button></div>
+        <div class="card">
+          <div class="toolbar">
+            <input class="search" placeholder="Search audits..." oninput="filterTable('auditsTbody',this.value)"/>
+            <select class="filt" onchange="loadAudits(this.value)" id="auditStatusFilter">
+              <option value="">All Status</option>
+              <option>Planned</option><option>In Progress</option><option>Completed</option><option>Cancelled</option>
+            </select>
+          </div>
+          <table class="tbl"><thead><tr><th>Audit Name</th><th>Type</th><th>Plant</th><th>Lead Auditor</th><th>From</th><th>To</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="auditsTbody"></tbody></table>
+        </div>
+      </section>
+
+      <!-- CALENDAR -->
+      <section id="section-calendar" class="section">
+        <div class="sec-header"><h2>Audit Calendar</h2><button class="btn btn-primary admin-only" onclick="openAuditModal()">+ Schedule</button></div>
+        <div class="card">
+          <div class="cal-nav"><button class="btn btn-outline" onclick="calPrev()">← Prev</button><h3 id="calTitle"></h3><button class="btn btn-outline" onclick="calNext()">Next →</button></div>
+          <div class="cal-grid" id="calGrid"></div>
+          <div class="cal-legend"><span><span class="dot planned"></span>Planned</span><span><span class="dot inprogress"></span>In Progress</span><span><span class="dot completed"></span>Completed</span></div>
+        </div>
+        <div class="card" id="calDayCard" style="display:none"><div class="card-hdr" id="calDayTitle"></div><div id="calDayBody"></div></div>
+      </section>
+
+      <!-- NCS -->
+      <section id="section-ncs" class="section">
+        <div class="sec-header"><h2>Non-Conformances</h2></div>
+        <div class="card">
+          <div class="toolbar">
+            <input class="search" placeholder="Search NCs..." oninput="filterTable('ncsTbody',this.value)"/>
+            <select class="filt" onchange="loadNCs(this.value)">
+              <option value="">All Status</option>
+              <option>Open</option><option>Closed</option><option>Resolved</option><option>Reopen</option>
+            </select>
+          </div>
+          <table class="tbl"><thead><tr><th>NC ID</th><th>Audit</th><th>Plant</th><th>Severity</th><th>Description</th><th>Assigned To</th><th>Target Date</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="ncsTbody"></tbody></table>
+        </div>
+      </section>
+
+      <!-- OBSERVATIONS -->
+      <section id="section-observations" class="section">
+        <div class="sec-header"><h2>Observations</h2><button class="btn btn-primary admin-auditor-only" onclick="openObsModal()">+ Add</button></div>
+        <div class="card">
+          <table class="tbl"><thead><tr><th>Audit</th><th>Type</th><th>Description</th><th>By</th><th>Date</th></tr></thead>
+          <tbody id="obsTbody"></tbody></table>
+        </div>
+      </section>
+
+      <!-- REPORTS -->
+      <section id="section-reports" class="section">
+        <div class="sec-header"><h2>Reports</h2></div>
+        <div class="dash-grid">
+          <div class="card"><div class="card-hdr">Aging Report — Overdue NCs</div>
+            <div class="toolbar"><button class="btn btn-primary" onclick="loadAgingReport()">Refresh</button><button class="btn btn-outline" onclick="exportCSV()">Export CSV</button></div>
+            <table class="tbl"><thead><tr><th>NC</th><th>Plant</th><th>Severity</th><th>Days Overdue</th><th>Assigned To</th><th>Status</th></tr></thead><tbody id="agingTbody"></tbody></table>
+          </div>
+          <div class="card"><div class="card-hdr">Plant-Wise Summary</div>
+            <table class="tbl"><thead><tr><th>Plant</th><th>Scope</th><th>Audits</th><th>Completed</th><th>In Progress</th><th>NCs</th><th>Open NCs</th></tr></thead><tbody id="plantTbody"></tbody></table>
+          </div>
+        </div>
+      </section>
+
+      <!-- MASTER: PLANTS -->
+      <section id="section-master-plants" class="section">
+        <div class="sec-header"><h2>Plants / Sites</h2><button class="btn btn-primary admin-only" onclick="openMasterModal('plant')">+ Add Plant</button></div>
+        <div class="card"><table class="tbl"><thead><tr><th>Name</th><th>Location</th><th>Scope</th><th>Actions</th></tr></thead><tbody id="plantsTbody"></tbody></table></div>
+      </section>
+
+      <!-- MASTER: DEPARTMENTS -->
+      <section id="section-master-departments" class="section">
+        <div class="sec-header"><h2>Departments</h2><button class="btn btn-primary admin-only" onclick="openMasterModal('dept')">+ Add Department</button></div>
+        <div class="card"><table class="tbl"><thead><tr><th>Name</th><th>Plant</th><th>Actions</th></tr></thead><tbody id="deptsTbody"></tbody></table></div>
+      </section>
+
+      <!-- MASTER: AUDIT TYPES -->
+      <section id="section-master-audit-types" class="section">
+        <div class="sec-header"><h2>Audit Types</h2><button class="btn btn-primary admin-only" onclick="openMasterModal('auditType')">+ Add Type</button></div>
+        <div class="card"><table class="tbl"><thead><tr><th>Name</th><th>Framework/Standard</th><th>Actions</th></tr></thead><tbody id="auditTypesTbody"></tbody></table></div>
+      </section>
+
+      <!-- MASTER: USERS -->
+      <section id="section-master-users" class="section">
+        <div class="sec-header"><h2>Users Management</h2><button class="btn btn-primary admin-only" onclick="openUserModal()">+ Add User</button></div>
+        <div class="card"><table class="tbl"><thead><tr><th>Name</th><th>Username</th><th>Email</th><th>Role</th><th>Actions</th></tr></thead><tbody id="usersTbody"></tbody></table></div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<!-- AUDIT MODAL -->
+<div id="modal-audit" class="modal hidden">
+  <div class="modal-bg" onclick="closeModal('modal-audit')"></div>
+  <div class="modal-box wide">
+    <div class="modal-hdr"><h3 id="auditModalTitle">New Audit</h3><button onclick="closeModal('modal-audit')">✕</button></div>
+    <form id="auditForm" onsubmit="saveAudit(event)">
+      <div class="form-grid">
+        <div class="form-group full"><label>Audit Name *</label><input id="af_name" required/></div>
+        <div class="form-group"><label>LDAP Directory</label><input id="af_ldap" placeholder="LDAP / AD path"/></div>
+        <div class="form-group"><label>Audit Type *</label><select id="af_type" required><option value="">Select</option></select></div>
+        <div class="form-group"><label>Standard / Framework</label><input id="af_framework" placeholder="e.g. ISO 9001:2015"/></div>
+        <div class="form-group"><label>Plant / Site *</label><select id="af_site" required onchange="loadDeptsBysite(this.value)"><option value="">Select</option></select></div>
+        <div class="form-group"><label>Location</label><input id="af_location"/></div>
+        <div class="form-group"><label>Department</label><select id="af_dept"><option value="">Select</option></select></div>
+        <div class="form-group"><label>Performed By</label><input id="af_performed_by"/></div>
+        <div class="form-group"><label>Lead Auditor</label><input id="af_lead_auditor"/></div>
+        <div class="form-group"><label>From Date *</label><input type="date" id="af_from" required/></div>
+        <div class="form-group"><label>To Date *</label><input type="date" id="af_to" required/></div>
+        <div class="form-group"><label>Recurrence</label><select id="af_recurrence"><option value="">None</option><option>Monthly</option><option>Quarterly</option><option>Half-Yearly</option><option>Annually</option></select></div>
+        <div class="form-group full"><label>List of Auditors</label><select id="af_auditors" multiple style="height:80px"><option value="">Loading...</option></select><small>Hold Ctrl/Cmd to select multiple</small></div>
+      </div>
+      <div class="modal-ftr"><button type="button" class="btn btn-outline" onclick="closeModal('modal-audit')">Cancel</button><button type="submit" class="btn btn-primary">Save Audit</button></div>
+    </form>
+  </div>
+</div>
+
+<!-- AUDIT DETAIL MODAL -->
+<div id="modal-audit-detail" class="modal hidden">
+  <div class="modal-bg" onclick="closeModal('modal-audit-detail')"></div>
+  <div class="modal-box wide" style="max-width:900px">
+    <div class="modal-hdr"><h3 id="detailTitle">Audit Detail</h3><button onclick="closeModal('modal-audit-detail')">✕</button></div>
+    <div id="auditDetailBody" style="padding:16px;overflow-y:auto;max-height:75vh"></div>
+  </div>
+</div>
+
+<!-- NC MODAL -->
+<div id="modal-nc" class="modal hidden">
+  <div class="modal-bg" onclick="closeModal('modal-nc')"></div>
+  <div class="modal-box wide">
+    <div class="modal-hdr"><h3>Raise NC</h3><button onclick="closeModal('modal-nc')">✕</button></div>
+    <form id="ncForm" onsubmit="saveNC(event)">
+      <div class="form-grid">
+        <input type="hidden" id="nc_audit_id"/>
+        <div class="form-group"><label>Observation Type</label><select id="nc_obs_type"><option>NC</option><option>Observation</option><option>OFI</option></select></div>
+        <div class="form-group"><label>Severity</label><select id="nc_severity"><option>Critical</option><option>Major</option><option>Minor</option></select></div>
+        <div class="form-group"><label>Clause / Control</label><input id="nc_clause"/></div>
+        <div class="form-group"><label>Category</label><input id="nc_category" placeholder="e.g. Documentation"/></div>
+        <div class="form-group full"><label>Description *</label><textarea id="nc_desc" rows="3" required></textarea></div>
+        <div class="form-group full"><label>Type / Clause Description</label><textarea id="nc_type_desc" rows="2"></textarea></div>
+        <div class="form-group"><label>Assign To</label><select id="nc_assign"><option value="">Select</option></select></div>
+        <div class="form-group"><label>Target Closure Date</label><input type="date" id="nc_target"/></div>
+      </div>
+      <div class="modal-ftr"><button type="button" class="btn btn-outline" onclick="closeModal('modal-nc')">Cancel</button><button type="submit" class="btn btn-primary">Save NC</button></div>
+    </form>
+  </div>
+</div>
+
+<!-- NC DETAIL MODAL -->
+<div id="modal-nc-detail" class="modal hidden">
+  <div class="modal-bg" onclick="closeModal('modal-nc-detail')"></div>
+  <div class="modal-box">
+    <div class="modal-hdr"><h3>NC Detail</h3><button onclick="closeModal('modal-nc-detail')">✕</button></div>
+    <div id="ncDetailBody" style="padding:16px;max-height:70vh;overflow-y:auto"></div>
+    <div class="modal-ftr"><button class="btn btn-outline" onclick="closeModal('modal-nc-detail')">Close</button></div>
+  </div>
+</div>
+
+<!-- OBSERVATION MODAL -->
+<div id="modal-obs" class="modal hidden">
+  <div class="modal-bg" onclick="closeModal('modal-obs')"></div>
+  <div class="modal-box">
+    <div class="modal-hdr"><h3>Add Observation</h3><button onclick="closeModal('modal-obs')">✕</button></div>
+    <form onsubmit="saveObs(event)" style="padding:16px">
+      <div class="form-group"><label>Audit</label><select id="obs_audit"><option value="">Select Audit</option></select></div>
+      <div class="form-group"><label>Type</label><select id="obs_type"><option>Observation</option><option>OFI</option><option>Positive</option></select></div>
+      <div class="form-group"><label>Description *</label><textarea id="obs_desc" rows="3" required></textarea></div>
+      <div class="modal-ftr"><button type="button" class="btn btn-outline" onclick="closeModal('modal-obs')">Cancel</button><button type="submit" class="btn btn-primary">Save</button></div>
+    </form>
+  </div>
+</div>
+
+<!-- MASTER MODAL -->
+<div id="modal-master" class="modal hidden">
+  <div class="modal-bg" onclick="closeModal('modal-master')"></div>
+  <div class="modal-box">
+    <div class="modal-hdr"><h3 id="masterModalTitle">Add</h3><button onclick="closeModal('modal-master')">✕</button></div>
+    <form id="masterForm" onsubmit="saveMaster(event)" style="padding:16px">
+      <div id="masterFormFields"></div>
+      <div class="modal-ftr"><button type="button" class="btn btn-outline" onclick="closeModal('modal-master')">Cancel</button><button type="submit" class="btn btn-primary">Save</button></div>
+    </form>
+  </div>
+</div>
+
+<!-- STATUS MODAL -->
+<div id="modal-status" class="modal hidden">
+  <div class="modal-bg" onclick="closeModal('modal-status')"></div>
+  <div class="modal-box" style="max-width:380px">
+    <div class="modal-hdr"><h3>Change Status</h3><button onclick="closeModal('modal-status')">✕</button></div>
+    <div style="padding:16px">
+      <div class="form-group"><label>Status</label><select id="statusSelect"><option value="1">Planned</option><option value="2">In Progress</option><option value="3">Completed</option><option value="4">Cancelled</option></select></div>
+      <div class="form-group"><label>Remarks</label><textarea id="statusRemarks" rows="2"></textarea></div>
+    </div>
+    <div class="modal-ftr"><button class="btn btn-outline" onclick="closeModal('modal-status')">Cancel</button><button class="btn btn-primary" onclick="confirmStatus()">Update</button></div>
+  </div>
+</div>
+
+<!-- USER MODAL -->
+<div id="modal-user" class="modal hidden">
+  <div class="modal-bg" onclick="closeModal('modal-user')"></div>
+  <div class="modal-box" style="max-width:440px">
+    <div class="modal-hdr"><h3>Add New User</h3><button onclick="closeModal('modal-user')">✕</button></div>
+    <form id="userForm" onsubmit="saveUser(event)" style="padding:16px">
+      <div class="form-group"><label>Full Name *</label><input id="uf_name" placeholder="e.g. John Doe" required/></div>
+      <div class="form-group"><label>Username *</label><input id="uf_username" placeholder="e.g. jdoe" required/></div>
+      <div class="form-group"><label>Email *</label><input id="uf_email" type="email" placeholder="jdoe@example.com" required/></div>
+      <div class="form-group"><label>Role *</label><select id="uf_role" required><option value="3">Customer (Auditee)</option><option value="2">Auditor</option><option value="1">Admin</option></select></div>
+      <div class="form-group"><label>Phone</label><input id="uf_phone" placeholder="+91 ..."/></div>
+      <div class="form-group"><label>Initial Password *</label><input id="uf_password" type="password" required minlength="6" value="User@123"/></div>
+      <div class="modal-ftr"><button type="button" class="btn btn-outline" onclick="closeModal('modal-user')">Cancel</button><button type="submit" class="btn btn-primary">Create User</button></div>
+    </form>
+  </div>
+</div>
+
+<script src="js/api.js?v=2"></script>
+<script src="js/app.js?v=4"></script>
+</body>
+</html>

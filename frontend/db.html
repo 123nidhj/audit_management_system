@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MariaDB Database Explorer — audit_management</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #0f172a; color: #f8fafc; font-size: 13px; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+    header { background: #1e293b; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #334155; }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .logo { background: #0284c7; color: #fff; font-weight: 800; font-size: 15px; padding: 4px 10px; border-radius: 4px; letter-spacing: 0.5px; }
+    .title { font-size: 15px; font-weight: 600; color: #f1f5f9; }
+    .badge { background: #0369a1; color: #e0f2fe; padding: 2px 8px; border-radius: 12px; font-size: 11px; }
+    .host-tag { color: #94a3b8; font-size: 12px; font-family: monospace; }
+    .btn { padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+    .btn-primary { background: #0284c7; color: #fff; }
+    .btn-primary:hover { background: #0369a1; }
+    .btn-outline { background: transparent; color: #cbd5e1; border: 1px solid #475569; }
+    .btn-outline:hover { background: #334155; color: #fff; }
+    .layout { display: flex; flex: 1; overflow: hidden; }
+    aside { width: 260px; background: #1e293b; border-right: 1px solid #334155; display: flex; flex-direction: column; }
+    .sidebar-title { padding: 12px 16px; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #64748b; letter-spacing: 0.8px; border-bottom: 1px solid #334155; }
+    .tables-list { flex: 1; overflow-y: auto; padding: 8px 0; }
+    .table-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; cursor: pointer; color: #cbd5e1; font-family: monospace; font-size: 12.5px; transition: background 0.15s; }
+    .table-item:hover { background: #334155; color: #fff; }
+    .table-item.active { background: #0284c7; color: #fff; font-weight: bold; }
+    .table-count { font-size: 10px; background: rgba(0,0,0,0.25); padding: 2px 6px; border-radius: 10px; color: #94a3b8; }
+    .table-item.active .table-count { color: #e0f2fe; background: rgba(0,0,0,0.3); }
+    main { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #0b1120; }
+    .sql-bar { padding: 12px 18px; background: #131c2e; border-bottom: 1px solid #1e293b; display: flex; gap: 10px; align-items: center; }
+    .sql-input { flex: 1; background: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 8px 12px; color: #38bdf8; font-family: monospace; font-size: 13px; outline: none; }
+    .sql-input:focus { border-color: #38bdf8; }
+    .content-area { flex: 1; overflow: auto; padding: 16px; }
+    .meta-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .meta-title { font-size: 14px; font-weight: 600; color: #e2e8f0; display: flex; align-items: center; gap: 8px; }
+    .data-table-container { background: #1e293b; border-radius: 8px; border: 1px solid #334155; overflow: auto; max-height: calc(100vh - 180px); }
+    table { width: 100%; border-collapse: collapse; text-align: left; font-size: 12px; }
+    th { background: #0f172a; color: #94a3b8; font-weight: 600; padding: 10px 12px; position: sticky; top: 0; border-bottom: 1px solid #334155; text-transform: uppercase; font-size: 10.5px; letter-spacing: 0.5px; white-space: nowrap; }
+    td { padding: 8px 12px; border-bottom: 1px solid #1e293b; color: #e2e8f0; white-space: nowrap; font-family: monospace; }
+    tr:hover td { background: rgba(2, 132, 199, 0.08); }
+    .null-val { color: #64748b; font-style: italic; }
+    .status-msg { color: #94a3b8; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="logo">MariaDB</div>
+      <div class="title">Database Explorer</div>
+      <span class="badge">audit_management</span>
+      <span class="host-tag">127.0.0.1:3307</span>
+    </div>
+    <div style="display: flex; gap: 10px; align-items: center;">
+      <a href="/" class="btn btn-outline">← Back to Audit Website</a>
+      <button class="btn btn-primary" onclick="loadTables()">↻ Refresh</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside>
+      <div class="sidebar-title">Tables in audit_management</div>
+      <div class="tables-list" id="tablesList">
+        <div style="padding: 16px; color: #64748b;">Loading tables...</div>
+      </div>
+    </aside>
+
+    <main>
+      <div class="sql-bar">
+        <input type="text" id="sqlInput" class="sql-input" placeholder="Type SQL query (e.g. SELECT * FROM users;)"/>
+        <button class="btn btn-primary" onclick="runCustomQuery()">Run SQL</button>
+      </div>
+      <div class="content-area">
+        <div class="meta-bar">
+          <div class="meta-title" id="currentViewTitle">Select a table from the sidebar</div>
+          <div class="status-msg" id="queryStatus"></div>
+        </div>
+        <div class="data-table-container" id="tableContainer">
+          <div style="padding: 32px; text-align: center; color: #64748b;">Select any table on the left sidebar to view its records and data.</div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    let activeTable = '';
+
+    async function loadTables() {
+      try {
+        const res = await fetch('/api/db/tables');
+        const tables = await res.json();
+        const listEl = document.getElementById('tablesList');
+        listEl.innerHTML = tables.map(t => `
+          <div class="table-item ${t.table_name === activeTable ? 'active' : ''}" onclick="loadTableData('${t.table_name}')">
+            <span>🗄️ ${t.table_name}</span>
+            <span class="table-count">${t.table_rows || 0}</span>
+          </div>
+        `).join('');
+
+        if (!activeTable && tables.length) {
+          loadTableData('users');
+        }
+      } catch (err) {
+        document.getElementById('tablesList').innerHTML = '<div style="padding:16px;color:#f87171">Failed to load tables</div>';
+      }
+    }
+
+    async function loadTableData(tableName) {
+      activeTable = tableName;
+      document.querySelectorAll('.table-item').forEach(el => {
+        el.classList.toggle('active', el.textContent.includes(tableName));
+      });
+      document.getElementById('currentViewTitle').innerHTML = `Table: <strong style="color:#38bdf8">${tableName}</strong>`;
+      document.getElementById('sqlInput').value = `SELECT * FROM ${tableName} LIMIT 100;`;
+      document.getElementById('queryStatus').textContent = 'Loading...';
+
+      try {
+        const res = await fetch('/api/db/table?name=' + encodeURIComponent(tableName));
+        const rows = await res.json();
+        renderRows(rows);
+      } catch (err) {
+        document.getElementById('tableContainer').innerHTML = `<div style="padding:24px;color:#f87171">Error: ${err.message}</div>`;
+        document.getElementById('queryStatus').textContent = 'Error';
+      }
+    }
+
+    async function runCustomQuery() {
+      const sql = document.getElementById('sqlInput').value.trim();
+      if (!sql) return;
+      document.getElementById('queryStatus').textContent = 'Executing...';
+      document.getElementById('currentViewTitle').innerHTML = `Query Result`;
+
+      try {
+        const res = await fetch('/api/db/query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sql })
+        });
+        const rows = await res.json();
+        if (rows.error) throw new Error(rows.error);
+        renderRows(rows);
+      } catch (err) {
+        document.getElementById('tableContainer').innerHTML = `<div style="padding:24px;color:#f87171">SQL Error: ${err.message}</div>`;
+        document.getElementById('queryStatus').textContent = 'Error';
+      }
+    }
+
+    function renderRows(rows) {
+      const container = document.getElementById('tableContainer');
+      if (!rows || !rows.length) {
+        container.innerHTML = '<div style="padding:32px;text-align:center;color:#64748b">No records found (table is empty)</div>';
+        document.getElementById('queryStatus').textContent = '0 rows returned';
+        return;
+      }
+
+      const headers = Object.keys(rows[0]);
+      let html = '<table><thead><tr>' + headers.map(h => `<th>${h}</th>`).join('') + '</tr></thead><tbody>';
+      rows.forEach(r => {
+        html += '<tr>' + headers.map(h => {
+          const val = r[h];
+          if (val === null || val === undefined) return '<td class="null-val">NULL</td>';
+          return `<td>${escapeHtml(String(val))}</td>`;
+        }).join('') + '</tr>';
+      });
+      html += '</tbody></table>';
+      container.innerHTML = html;
+      document.getElementById('queryStatus').textContent = `${rows.length} rows returned`;
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    document.getElementById('sqlInput').addEventListener('keydown', e => {
+      if (e.key === 'Enter') runCustomQuery();
+    });
+
+    loadTables();
+  </script>
+</body>
+</html>
